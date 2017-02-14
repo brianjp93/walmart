@@ -45,3 +45,7 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+.ipynb_checkpoints/
+*.ipynb
+test_walmart.*
+*.pyc
