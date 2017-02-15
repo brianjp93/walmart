@@ -2,6 +2,7 @@
 wrapper around the walmart api
 '''
 import requests
+from requests import Request, Session
 import time
 import base64
 from cryptography.hazmat.backends import default_backend
@@ -13,6 +14,12 @@ from uuid import uuid4
 from xml.etree import ElementTree as ET
 import pytz
 from datetime import datetime
+try:
+    # python 2
+    from StringIO import StringIO
+except:
+    # python 3
+    from IO import StringIO
 
 
 __author__ = 'Brian Perrett'
@@ -21,9 +28,11 @@ __date__   = 'Feb 10, 2017'
 
 class Walmart():
     base_url = 'https://marketplace.walmartapis.com/'
-    def __init__(self, private_key, consumer_id):
+    xml_head = '<?xml version="1.0" encoding="UTF-8"?>'
+    def __init__(self, private_key, consumer_id, channel_type):
         self.private_key = private_key
         self.consumer_id = consumer_id
+        self.channel_type = channel_type
 
     def get_headers(self, timestamp, signature):
         random_id = str(uuid4())
@@ -33,7 +42,9 @@ class Walmart():
             'WM_CONSUMER.ID': '{}'.format(self.consumer_id),
             'WM_SEC.TIMESTAMP': str(timestamp),
             'WM_SEC.AUTH_SIGNATURE': signature,
-            'WM_QOS.CORRELATION_ID': random_id
+            'WM_QOS.CORRELATION_ID': random_id,
+            'WM_CONSUMER.CHANNEL.TYPE': self.channel_type,
+            # 'Host': 'https://marketplace.walmartapis.com'
             }
         return headers
 
@@ -99,9 +110,9 @@ class Walmart():
         '''
         '''
         full_url = '{}v2/prices?sku={}&currency={}&price={}'.format(self.base_url, sku, currency, price)
-        signature, timestamp = self.sign(full_url, 'POST')
+        signature, timestamp = self.sign(full_url, 'PUT')
         headers = self.get_headers(timestamp, signature)
-        r = requests.get(full_url, headers=headers)
+        r = requests.put(full_url, headers=headers)
         return r
 
     ###########################################################
@@ -148,4 +159,116 @@ class Walmart():
         signature, timestamp = self.sign(full_url, 'GET')
         headers = self.get_headers(timestamp, signature)
         r = requests.get(full_url, headers=headers)
+        return r
+
+    def ack_order(self, purchase_order_id):
+        '''
+        https://developer.walmartapis.com/#acknowledging-orders55
+        "Acknowledge" order.  Whatever that means.
+        '''
+        full_url = '{}v2/orders/{}/acknowledge'.format(self.base_url, purchase_order_id)
+        signature, timestamp = self.sign(full_url, 'POST')
+        headers = self.get_headers(timestamp, signature)
+        headers['content-type'] = 'application/xml'
+        r = requests.post(full_url, headers=headers)
+        return r
+
+    def cancel_order_lines(self, purchase_order_id, line_number, status):
+        '''
+        https://developer.walmartapis.com/#cancelling-order-lines56
+        '''
+        full_url = '{}v2/orders/{}/cancel'.format(self.base_url, purchase_order_id)
+
+    def update_shipping(
+            self,
+            purchase_order_id,
+            line_number,
+            status,
+            ship_date_time,
+            carrier_name,
+            method_code,
+            tracking_number,
+            tracking_url=None
+            ):
+        '''
+        https://developer.walmartapis.com/#shipping-notificationsupdates58
+        '''
+        full_url = '{}/v2/orders/{}/shipping'.format(self.base_url, purchase_order_id)
+        ns2 = 'http://walmart.com/mp/orders'
+        ns3 = 'http://walmart.com/'
+        order_shipment_elt = ET.Element('{}:orderShipment')
+        order_shipment_elt.set('xmlns:ns2', ns2)
+        order_shipment_elt.set('xmlns:ns3', ns3)
+        # TODO: finish method.
+
+    ###############################################################
+    ###################### INVENTORY METHODS ######################
+    ###############################################################
+
+    def get_inventory(self, sku):
+        '''
+        https://developer.walmartapis.com/#get-inventory-for-an-item
+        '''
+        full_url = '{}v2/inventory?sku={}'.format(self.base_url, sku)
+        signature, timestamp = self.sign(full_url, 'GET')
+        headers = self.get_headers(timestamp, signature)
+        r = requests.get(full_url, headers=headers)
+        return r
+
+    def update_inventory(self, sku, amount, unit='EACH', lag_time='2'):
+        '''
+        https://developer.walmartapis.com/#update-inventory-for-an-item
+        updating inventory for single item
+        '''
+        full_url = '{}v2/inventory?sku={}'.format(self.base_url, sku)
+        ns = 'wm'
+        inventory_elt = ET.Element('{}:inventory'.format(ns))
+        inventory_elt.set('xmlns:wm', 'http://walmart.com/')
+        sku_elt = ET.SubElement(inventory_elt, '{}:sku'.format(ns))
+        sku_elt.text = str(sku)
+        quantity_elt = ET.SubElement(inventory_elt, '{}:quantity'.format(ns))
+        unit_elt = ET.SubElement(quantity_elt, '{}:unit'.format(ns))
+        unit_elt.text = unit
+        amount_elt = ET.SubElement(quantity_elt, '{}:amount'.format(ns))
+        amount_elt.text = str(amount)
+        lag_elt = ET.SubElement(inventory_elt, '{}:fulfillmentLagTime'.format(ns))
+        lag_elt.text = lag_time
+        xml_string = '{}{}'.format(self.xml_head, ET.tostring(inventory_elt))
+        signature, timestamp = self.sign(full_url, 'PUT')
+        headers = self.get_headers(timestamp, signature)
+        headers['content-type'] = 'application/xml'
+        r = requests.put(full_url, headers=headers, data=xml_string)
+        return r
+
+    def bulk_update_inventory(self, version='1.4', data=[]):
+        '''
+        https://developer.walmartapis.com/#bulk-update-inventory
+        data is a list of dictionaries -> 
+            [{'sku': <sku>, 'unit': <unit>, 'amount': <amount>, 'lag_time': <lag_time>}, ...]
+        uses memory file (StringIO) to send xml file
+        '''
+        full_url = '{}v2/feeds?feedType=inventory'.format(self.base_url)
+        ns = 'http://walmart.com/'
+        inventory_feed_elt = ET.Element('InventoryFeed')
+        inventory_feed_elt.set('xmlns', ns)
+        inventory_header_elt = ET.SubElement(inventory_feed_elt, 'InventoryHeader')
+        version_elt = ET.SubElement(inventory_header_elt, 'version')
+        version_elt.text = version
+        for item in data:
+            inventory_elt = ET.SubElement(inventory_feed_elt, 'inventory')
+            sku_elt = ET.SubElement(inventory_elt, 'sku')
+            sku_elt.text = str(item['sku'])
+            quantity_elt = ET.SubElement(inventory_elt, 'quantity')
+            unit_elt = ET.SubElement(quantity_elt, 'unit')
+            unit_elt.text = item['unit']
+            amount_elt = ET.SubElement(quantity_elt, 'amount')
+            amount_elt.text = str(item['amount'])
+            lag_elt = ET.SubElement(inventory_elt, 'fulfillmentLagTime')
+            lag_elt.text = str(item['lag_time'])
+        xml_string = ET.tostring(inventory_feed_elt)
+        files = {'file': ('bulk.xml', xml_string)}
+        signature, timestamp = self.sign(full_url, 'POST')
+        headers = self.get_headers(timestamp, signature)
+        headers['Content-Type'] = 'multipart/form-data;'
+        r = requests.post(full_url, headers=headers, files=files)
         return r
