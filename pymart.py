@@ -57,6 +57,8 @@ class Walmart():
             'WM_SEC.AUTH_SIGNATURE': signature,
             'WM_QOS.CORRELATION_ID': random_id,
             'WM_CONSUMER.CHANNEL.TYPE': self.channel_type,
+
+            # walmart asks for this header but whenever I provide it my request is denied???
             # 'Host': 'https://marketplace.walmartapis.com'
             }
         return headers
