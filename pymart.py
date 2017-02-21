@@ -181,8 +181,31 @@ class Walmart():
 
     def get_order(self, order_id):
         '''
+        order_id -> walmart purchase_order_id
         '''
         full_url = '{}v2/orders/{}'.format(self.base_url, order_id)
+        signature, timestamp = self.sign(full_url, 'GET')
+        headers = self.get_headers(timestamp, signature)
+        r = requests.get(full_url, headers=headers)
+        return r
+
+    def get_all_released_orders(
+            self,
+            created_start_date=None,        # ISO 8601 formatted datetime
+            limit=200,
+            next_cursor=None
+            ):
+        '''
+        Retrieves only created orders.  NOT acknowledged orders.
+        '''
+        base_url = '{}v3/orders/released?'.format(self.base_url)
+        params = []
+        if limit: params.append('limit={}'.format(limit))
+        if next_cursor:
+            next_cursor = next_cursor[1:]
+            params.append('nextCursor={}'.format(next_cursor))
+        if created_start_date: params.append('createdStartDate={}'.format(created_start_date))
+        full_url = base_url + '&'.join(params)
         signature, timestamp = self.sign(full_url, 'GET')
         headers = self.get_headers(timestamp, signature)
         r = requests.get(full_url, headers=headers)
@@ -203,7 +226,7 @@ class Walmart():
             ):
         '''
         '''
-        base_url = '{}v2/orders?'.format(self.base_url)
+        base_url = '{}v3/orders?'.format(self.base_url)
         params = []
         if sku: params.append('sku={}'.format(sku))
         if customer_order_id: params.append('customerOrderId={}'.format(customer_order_id))
@@ -214,7 +237,9 @@ class Walmart():
         if from_expected_ship_date: params.append('fromExpectedShipDate={}'.format(from_expected_ship_date))
         if to_expected_ship_date: params.append('toExpectedShipDate={}'.format(to_expected_ship_date))
         if limit: params.append('limit={}'.format(limit))
-        if next_cursor: params.append('nextCursor={}'.format(next_cursor))
+        if next_cursor:
+            next_cursor = next_cursor[1:]
+            params.append('nextCursor={}'.format(next_cursor))
         full_url = base_url + '&'.join(params)
         signature, timestamp = self.sign(full_url, 'GET')
         headers = self.get_headers(timestamp, signature)
@@ -226,7 +251,7 @@ class Walmart():
         https://developer.walmartapis.com/#acknowledging-orders55
         "Acknowledge" order.  Whatever that means.
         '''
-        full_url = '{}v2/orders/{}/acknowledge'.format(self.base_url, purchase_order_id)
+        full_url = '{}v3/orders/{}/acknowledge'.format(self.base_url, purchase_order_id)
         signature, timestamp = self.sign(full_url, 'POST')
         headers = self.get_headers(timestamp, signature)
         headers['content-type'] = 'application/xml'
