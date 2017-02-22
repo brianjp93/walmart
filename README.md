@@ -46,11 +46,11 @@ r.content # xml data string
 ```
 
 #### Bulk Orders
-For some reason, the Walmart API does not provide a way to filter orders by `modified_date`, so you'll have to do with `startCreatedDate` and `endCreatedDate`...
+For some reason, the Walmart API does not provide a way to filter orders by `modified_date`, so you'll have to do with `created_start_date` and `created_end_date`...
 ```python
 import pymart
 w = pymart.Walmart(private_key, consumer_id, channel_type)
-r = w.get_all_orders(createdStartDate='<Some ISO 8601 DateTime>')
+r = w.get_all_orders(created_start_date='<Some ISO 8601 DateTime>', status='Created', limit=200)
 r.content # xml data string
 ```
 If there are more than 200 orders in the response, then a `nextCursor` element will be provided and you can provide that as the sole argument to the `get_all_orders()` method to retrieve the next batch of orders.
