@@ -183,7 +183,7 @@ class Walmart():
         '''
         order_id -> walmart purchase_order_id
         '''
-        full_url = '{}v2/orders/{}'.format(self.base_url, order_id)
+        full_url = '{}v3/orders/{}'.format(self.base_url, order_id)
         signature, timestamp = self.sign(full_url, 'GET')
         headers = self.get_headers(timestamp, signature)
         r = requests.get(full_url, headers=headers)
@@ -335,7 +335,7 @@ class Walmart():
         '''
         https://developer.walmartapis.com/#get-inventory-for-an-item
         '''
-        full_url = '{}v2/inventory?sku={}'.format(self.base_url, sku)
+        full_url = '{}v3/inventory?sku={}'.format(self.base_url, sku)
         signature, timestamp = self.sign(full_url, 'GET')
         headers = self.get_headers(timestamp, signature)
         r = requests.get(full_url, headers=headers)
@@ -346,7 +346,7 @@ class Walmart():
         https://developer.walmartapis.com/#update-inventory-for-an-item
         updating inventory for single item
         '''
-        full_url = '{}v2/inventory?sku={}'.format(self.base_url, sku)
+        full_url = '{}v3/inventory?sku={}'.format(self.base_url, sku)
         ns = 'wm'
         inventory_elt = ET.Element('{}:inventory'.format(ns))
         inventory_elt.set('xmlns:wm', 'http://walmart.com/')
@@ -373,7 +373,7 @@ class Walmart():
             [{'sku': <sku>, 'unit': <unit>, 'amount': <amount>, 'lag_time': <lag_time>}, ...]
         uses memory file (StringIO) to send xml file
         '''
-        full_url = '{}v2/feeds?feedType=inventory'.format(self.base_url)
+        full_url = '{}v3/feeds?feedType=inventory'.format(self.base_url)
         ns = 'http://walmart.com/'
         inventory_feed_elt = ET.Element('InventoryFeed')
         inventory_feed_elt.set('xmlns', ns)
