@@ -287,8 +287,8 @@ class Walmart():
                 'tracking_url',         <trackingURL>
             }, ...]
         '''
-        full_url = '{}/v3/orders/{}/shipping'.format(self.base_url, purchase_order_id)
-        ns2 = 'http://walmart.com/mp/orders'
+        full_url = '{}v3/orders/{}/shipping'.format(self.base_url, purchase_order_id)
+        ns2 = 'http://walmart.com/mp/v3/orders'
         ns3 = 'http://walmart.com/'
         ns = 'ns2'
         order_shipment_elt = ET.Element('{}:orderShipment'.format(ns))
@@ -313,6 +313,7 @@ class Walmart():
             ship_date_time_elt.text = item['ship_date_time']
             carrier_name_elt = ET.SubElement(tracking_info_elt, '{}:carrierName'.format(ns))
             carrier_elt = ET.SubElement(carrier_name_elt, '{}:carrier'.format(ns))
+            carrier_elt.text = item['carrier_name']
             method_code_elt = ET.SubElement(tracking_info_elt, '{}:methodCode'.format(ns))
             method_code_elt.text = item['method_code']
             tracking_number_elt = ET.SubElement(tracking_info_elt, '{}:trackingNumber'.format(ns))
@@ -324,7 +325,7 @@ class Walmart():
         sig, ts = self.sign(full_url, 'POST')
         headers = self.get_headers(ts, sig)
         headers['content-type'] = 'application/xml'
-        r = requests.post(full_url, headers=headers)
+        r = requests.post(full_url, headers=headers, data=xml_string)
         return r        
 
     ###############################################################
