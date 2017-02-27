@@ -114,6 +114,13 @@ class Walmart():
         r = requests.get(full_url, headers=headers)
         return r
 
+    def retire_item(self, sku):
+        full_url = '{}v2/items/{}'.format(self.base_url, sku)
+        signature, timestamp = self.sign(full_url, 'DELETE')
+        headers = self.get_headers(timestamp, signature)
+        r = requests.delete(full_url, headers=headers)
+        return r
+
     ###########################################################
     ###################### PRICE METHODS ######################
     ###########################################################
